@@ -2,19 +2,23 @@ import re
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score, classification_report
 from sklearn.pipeline import Pipeline
 
 # ── 1. Load Data ──────────────────────────────────────────────────────────────
-df = pd.read_csv(
+df_train = pd.read_csv(
     "data/archive/twitter_training.csv",
     header=None,
     names=["id", "entity", "sentiment", "text"],
 )
+df_val = pd.read_csv(
+    "data/archive/twitter_validation.csv",
+    header=None,
+    names=["id", "entity", "sentiment", "text"],
+)
 
-print(f"Loaded {len(df):,} rows")
-print(f"Sentiment distribution:\n{df['sentiment'].value_counts()}\n")
+print(f"Loaded {len(df_train):,} training rows")
+print(f"Loaded {len(df_val):,} validation rows\n")
 
 
 # ── 2. Clean Tweets ───────────────────────────────────────────────────────────
@@ -30,17 +34,20 @@ def clean_tweet(text):
     return text
 
 
-df["clean_text"] = df["text"].apply(clean_tweet)
-df = df[df["clean_text"].str.len() > 0].reset_index(drop=True)
-print(f"After cleaning: {len(df):,} rows remaining\n")
+print("Cleaning datasets...")
+df_train["clean_text"] = df_train["text"].apply(clean_tweet)
+df_train = df_train[df_train["clean_text"].str.len() > 0].reset_index(drop=True)
 
-# ── 3. Train / Test Split ─────────────────────────────────────────────────────
-X = df["clean_text"]
-y = df["sentiment"]
+df_val["clean_text"] = df_val["text"].apply(clean_tweet)
+df_val = df_val[df_val["clean_text"].str.len() > 0].reset_index(drop=True)
 
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y
+print(
+    f"After cleaning: {len(df_train):,} training, {len(df_val):,} validation rows remaining\n"
 )
+
+# ── 3. Assign Features / Labels ───────────────────────────────────────────────
+X_train, y_train = df_train["clean_text"], df_train["sentiment"]
+X_test, y_test = df_val["clean_text"], df_val["sentiment"]
 
 # ── 4. Build Pipeline with Best Hyperparameters ───────────────────────────────
 # Best params from GridSearchCV (3-fold CV, f1_weighted):
@@ -61,7 +68,7 @@ pipeline = Pipeline(
         (
             "clf",
             LogisticRegression(
-                C=15.0,
+                C=1.0,
                 solver="saga",
                 max_iter=1000,
                 n_jobs=-1,
