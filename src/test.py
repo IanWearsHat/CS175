@@ -3,8 +3,14 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.metrics import accuracy_score, f1_score, classification_report
 from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import LabelEncoder
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
 
 from preprocess import clean_tweet, load_data, preprocess_data
+from cnn import build_cnn_model
 
 # ── 2. Model Definitions ──────────────────────────────────────────────────────
 
@@ -91,6 +97,71 @@ def run_examples(pipeline, examples, model_name):
     print("\n" + "=" * 40 + "\n")
 
 
+def train_and_evaluate_cnn(X_train, y_train, X_test, y_test, examples):
+    """Trains and evaluates the CNN model from src/cnn.py."""
+    print("=== CNN Model ===")
+
+    # 1. Label Encoding
+    le = LabelEncoder()
+    y_train_enc = le.fit_transform(y_train)
+    y_test_enc = le.transform(y_test)
+    num_classes = len(le.classes_)
+
+    # 2. Tokenization & Padding
+    max_words = 50_000
+    max_len = 100
+    tokenizer = Tokenizer(num_words=max_words)
+    tokenizer.fit_on_texts(X_train)
+
+    X_train_seq = tokenizer.texts_to_sequences(X_train)
+    X_test_seq = tokenizer.texts_to_sequences(X_test)
+
+    X_train_pad = pad_sequences(X_train_seq, maxlen=max_len, padding="post")
+    X_test_pad = pad_sequences(X_test_seq, maxlen=max_len, padding="post")
+
+    vocab_size = min(len(tokenizer.word_index) + 1, max_words)
+
+    # 3. Build Model
+    model = build_cnn_model(vocab_size, num_classes, max_len)
+
+    # 4. Train
+    print(f"Training CNN for 3 epochs...")
+    model.fit(
+        X_train_pad,
+        y_train_enc,
+        epochs=3,
+        batch_size=64,
+        validation_data=(X_test_pad, y_test_enc),
+        verbose=1,
+    )
+
+    # 5. Evaluate
+    y_pred_probs = model.predict(X_test_pad)
+    y_pred = np.argmax(y_pred_probs, axis=1)
+
+    print("\nCNN Performance:")
+    print(f"Accuracy      : {accuracy_score(y_test_enc, y_pred):.4f}")
+    print("Per-class report:")
+    print(classification_report(y_test_enc, y_pred, target_names=le.classes_))
+
+    # 6. Example Predictions
+    print("=== Example Predictions (CNN) ===")
+    cleaned_examples = [clean_tweet(t) for t in examples]
+    ex_seq = tokenizer.texts_to_sequences(cleaned_examples)
+    ex_pad = pad_sequences(ex_seq, maxlen=max_len, padding="post")
+
+    ex_probs = model.predict(ex_pad)
+    ex_preds = np.argmax(ex_probs, axis=1)
+
+    for tweet, pred_idx, probs in zip(examples, ex_preds, ex_probs):
+        pred_label = le.classes_[pred_idx]
+        prob_str = "  ".join(f"{cls}={p:.2f}" for cls, p in zip(le.classes_, probs))
+        print(f"\nTweet      : {tweet}")
+        print(f"Prediction : {pred_label}")
+        print(f"Confidence : {prob_str}")
+    print("-" * 40 + "\n")
+
+
 # ── 4. Main ───────────────────────────────────────────────────────────────────
 
 
@@ -111,17 +182,20 @@ def main():
         "I need a room full of mirrors so I can be surrounded by winners.",
     ]
 
-    # Logistic Regression
-    lr_pipe = get_logistic_regression_pipeline()
-    train_and_evaluate(lr_pipe, X_train, y_train, X_test, y_test, "Logistic Regression")
-    run_examples(lr_pipe, examples, "Logistic Regression")
+    # # Logistic Regression
+    # lr_pipe = get_logistic_regression_pipeline()
+    # train_and_evaluate(lr_pipe, X_train, y_train, X_test, y_test, "Logistic Regression")
+    # run_examples(lr_pipe, examples, "Logistic Regression")
 
-    # Multinomial Naive Bayes
-    nb_pipe = get_naive_bayes_pipeline()
-    train_and_evaluate(
-        nb_pipe, X_train, y_train, X_test, y_test, "Multinomial Naive Bayes"
-    )
-    run_examples(nb_pipe, examples, "Multinomial Naive Bayes")
+    # # Multinomial Naive Bayes
+    # nb_pipe = get_naive_bayes_pipeline()
+    # train_and_evaluate(
+    #     nb_pipe, X_train, y_train, X_test, y_test, "Multinomial Naive Bayes"
+    # )
+    # run_examples(nb_pipe, examples, "Multinomial Naive Bayes")
+
+    # CNN
+    train_and_evaluate_cnn(X_train, y_train, X_test, y_test, examples)
 
 
 if __name__ == "__main__":
