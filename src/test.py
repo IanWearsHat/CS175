@@ -222,20 +222,20 @@ def main():
         "I need a room full of mirrors so I can be surrounded by winners.",
     ]
 
-    # # Logistic Regression
-    # lr_pipe = get_logistic_regression_pipeline()
-    # train_and_evaluate(lr_pipe, X_train, y_train, X_test, y_test, "Logistic Regression")
-    # run_examples(lr_pipe, examples, "Logistic Regression")
+    # Logistic Regression
+    lr_pipe = get_logistic_regression_pipeline()
+    train_and_evaluate(lr_pipe, X_train, y_train, X_test, y_test, "Logistic Regression")
+    run_examples(lr_pipe, examples, "Logistic Regression")
 
-    # # Multinomial Naive Bayes
-    # nb_pipe = get_naive_bayes_pipeline()
-    # train_and_evaluate(
-    #     nb_pipe, X_train, y_train, X_test, y_test, "Multinomial Naive Bayes"
-    # )
-    # run_examples(nb_pipe, examples, "Multinomial Naive Bayes")
+    # Multinomial Naive Bayes
+    nb_pipe = get_naive_bayes_pipeline()
+    train_and_evaluate(
+        nb_pipe, X_train, y_train, X_test, y_test, "Multinomial Naive Bayes"
+    )
+    run_examples(nb_pipe, examples, "Multinomial Naive Bayes")
 
-    # # CNN
-    # train_and_evaluate_cnn(X_train, y_train, X_test, y_test, examples)
+    # CNN
+    train_and_evaluate_cnn(X_train, y_train, X_test, y_test, examples)
 
     # CNN + Transformer
     train_and_evaluate_transformer_cnn(X_train, y_train, X_test, y_test, examples)
