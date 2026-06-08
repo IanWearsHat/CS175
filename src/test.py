@@ -201,6 +201,23 @@ def train_and_evaluate_transformer_cnn(X_train, y_train, X_test, y_test, example
     print(f"Accuracy: {accuracy_score(y_test_enc, y_pred):.4f}")
     print(classification_report(y_test_enc, y_pred, target_names=le.classes_))
 
+    # 6. Example Predictions
+    print("=== Example Predictions (Transformer-CNN) ===")
+    
+    cleaned_examples = [clean_tweet(t) for t in examples]
+    ex_trans_inputs = prepare_hybrid_data(cleaned_examples, max_length=max_len)
+    ex_probs = model.predict(ex_trans_inputs)
+    ex_preds = np.argmax(ex_probs, axis=1)
+
+    for tweet, pred_idx, probs in zip(examples, ex_preds, ex_probs):
+        pred_label = le.classes_[pred_idx]
+        prob_str = "  ".join(f"{cls}={p:.2f}" for cls, p in zip(le.classes_, probs))
+        
+        print(f"\nTweet      : {tweet}")
+        print(f"Prediction : {pred_label}")
+        print(f"Confidence : {prob_str}")
+        
+    print("-" * 40 + "\n")
 
 # ── 4. Main ───────────────────────────────────────────────────────────────────
 
@@ -222,17 +239,17 @@ def main():
         "I need a room full of mirrors so I can be surrounded by winners.",
     ]
 
-    # Logistic Regression
-    lr_pipe = get_logistic_regression_pipeline()
-    train_and_evaluate(lr_pipe, X_train, y_train, X_test, y_test, "Logistic Regression")
-    run_examples(lr_pipe, examples, "Logistic Regression")
-
     # Multinomial Naive Bayes
     nb_pipe = get_naive_bayes_pipeline()
     train_and_evaluate(
         nb_pipe, X_train, y_train, X_test, y_test, "Multinomial Naive Bayes"
     )
     run_examples(nb_pipe, examples, "Multinomial Naive Bayes")
+
+    # Logistic Regression
+    lr_pipe = get_logistic_regression_pipeline()
+    train_and_evaluate(lr_pipe, X_train, y_train, X_test, y_test, "Logistic Regression")
+    run_examples(lr_pipe, examples, "Logistic Regression")
 
     # CNN
     train_and_evaluate_cnn(X_train, y_train, X_test, y_test, examples)

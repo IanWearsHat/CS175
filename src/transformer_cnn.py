@@ -28,37 +28,20 @@ def build_transformer_cnn_model(preset_name="bert_tiny_en_uncased", max_length=1
     # Extract the sequence output matrix (Shape: batch_size, max_length, hidden_dim)
     sequence_output = transformer_outputs["sequence_output"]
 
-    # # 4. Local Feature Extraction (1D CNN)
-    # conv = Conv1D(filters=128, kernel_size=5, activation="relu", name="cnn_ngram_extractor")(sequence_output)
-    # pool = GlobalMaxPooling1D()(conv)
+    # 4. Local Feature Extraction (1D CNN)
+    conv = Conv1D(filters=128, kernel_size=5, activation="relu", name="cnn_ngram_extractor")(sequence_output)
+    pool = GlobalMaxPooling1D()(conv)
 
-    # # 5. Classification Head
-    # dense_hidden = Dense(64, activation="relu")(pool)
-    # dropout = Dropout(0.5)(dense_hidden)
-    # output = Dense(num_classes, activation="softmax", name="predictions")(dropout)
-
-    conv_3 = Conv1D(filters=64, kernel_size=3, activation="relu", padding="same")(sequence_output)
-    pool_3 = GlobalMaxPooling1D()(conv_3)
-
-    conv_4 = Conv1D(filters=64, kernel_size=4, activation="relu", padding="same")(sequence_output)
-    pool_4 = GlobalMaxPooling1D()(conv_4)
-
-    conv_5 = Conv1D(filters=64, kernel_size=5, activation="relu", padding="same")(sequence_output)
-    pool_5 = GlobalMaxPooling1D()(conv_5)
-
-    # Fuse all extracted features together 
-    fused_features = Concatenate()([pool_3, pool_4, pool_5])
-
-    # Send to classification head
-    dense_hidden = Dense(64, activation="relu")(fused_features)
+    # 5. Classification Head
+    dense_hidden = Dense(64, activation="relu")(pool)
     dropout = Dropout(0.5)(dense_hidden)
-    output = Dense(num_classes, activation="softmax")(dropout)
+    output = Dense(num_classes, activation="softmax", name="predictions")(dropout)
 
     # Assemble the functional Keras graph
     model = Model(inputs=[input_ids, padding_mask, segment_ids], outputs=output)
     model.compile(
-        # customize optimizer value: current best is 2e-4 w/ accuracy of 0.9320
-        optimizer=tf.keras.optimizers.Adam(learning_rate=2e-4),
+        # You can customize optimizer value: current best is 3e-4 w/ accuracy of ~0.930 - 0.945
+        optimizer=tf.keras.optimizers.Adam(learning_rate=3e-4),
         loss="sparse_categorical_crossentropy",
         metrics=["accuracy"]
     )
