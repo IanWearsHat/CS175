@@ -1,6 +1,7 @@
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import MultinomialNB
+from sklearn.dummy import DummyClassifier
 from sklearn.metrics import accuracy_score, f1_score, classification_report
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder
@@ -56,6 +57,16 @@ def get_naive_bayes_pipeline():
                 ),
             ),
             ("clf", MultinomialNB()),
+        ]
+    )
+
+
+def get_baseline_pipeline():
+    """Returns a Pipeline with TfidfVectorizer and DummyClassifier."""
+    return Pipeline(
+        [
+            ("tfidf", TfidfVectorizer()),
+            ("clf", DummyClassifier(strategy="most_frequent")),
         ]
     )
 
@@ -238,6 +249,13 @@ def main():
         "Wemby is a generational talent.  He is going to be a top player of all time. He is going to become more and more aggressive, and get defended more and more physically. He, like Shaq before him, is going to need to learn to help referees, to protect himself, and to be his own enforcer. This elbow, though. This ain't it.",
         "I need a room full of mirrors so I can be surrounded by winners.",
     ]
+
+    # Most Frequent Baseline
+    baseline_pipe = get_baseline_pipeline()
+    train_and_evaluate(
+        baseline_pipe, X_train, y_train, X_test, y_test, "Most Frequent Baseline"
+    )
+    run_examples(baseline_pipe, examples, "Most Frequent Baseline")
 
     # Multinomial Naive Bayes
     nb_pipe = get_naive_bayes_pipeline()
