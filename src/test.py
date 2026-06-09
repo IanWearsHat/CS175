@@ -11,6 +11,7 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 
 from preprocess import clean_tweet, load_data, preprocess_data
 from cnn import build_cnn_model
+from transformer_cnn import build_transformer_cnn_model, prepare_hybrid_data
 
 # ── 2. Model Definitions ──────────────────────────────────────────────────────
 
@@ -162,6 +163,62 @@ def train_and_evaluate_cnn(X_train, y_train, X_test, y_test, examples):
     print("-" * 40 + "\n")
 
 
+def train_and_evaluate_transformer_cnn(X_train, y_train, X_test, y_test, examples):
+    print("=== Hybrid Windows Transformer-CNN Model ===")
+
+    # 1. Target Label Encoding
+    le = LabelEncoder()
+    y_train_enc = le.fit_transform(y_train)
+    y_test_enc = le.transform(y_test)
+    num_classes = len(le.classes_)
+
+    # 2. Tokenize using our safe hybrid function
+    max_len = 100
+    print("Mapping raw text safely on Windows environment...")
+    X_train_trans = prepare_hybrid_data(X_train, max_length=max_len)
+    X_test_trans = prepare_hybrid_data(X_test, max_length=max_len)
+
+    # 3. Build Model Graph
+    model = build_transformer_cnn_model(preset_name="bert_tiny_en_uncased", max_length=max_len, num_classes=num_classes)
+    model.summary()
+
+    # 4. Train Model Natively
+    print("Training Hybrid Model...")
+    model.fit(
+        X_train_trans,
+        y_train_enc,
+        epochs=3,
+        batch_size=64,
+        validation_data=(X_test_trans, y_test_enc),
+        verbose=1
+    )
+
+    # 5. Evaluate System Performance
+    y_pred_probs = model.predict(X_test_trans)
+    y_pred = np.argmax(y_pred_probs, axis=1)
+
+    print("\nTransformer-CNN Performance:")
+    print(f"Accuracy: {accuracy_score(y_test_enc, y_pred):.4f}")
+    print(classification_report(y_test_enc, y_pred, target_names=le.classes_))
+
+    # 6. Example Predictions
+    print("=== Example Predictions (Transformer-CNN) ===")
+    
+    cleaned_examples = [clean_tweet(t) for t in examples]
+    ex_trans_inputs = prepare_hybrid_data(cleaned_examples, max_length=max_len)
+    ex_probs = model.predict(ex_trans_inputs)
+    ex_preds = np.argmax(ex_probs, axis=1)
+
+    for tweet, pred_idx, probs in zip(examples, ex_preds, ex_probs):
+        pred_label = le.classes_[pred_idx]
+        prob_str = "  ".join(f"{cls}={p:.2f}" for cls, p in zip(le.classes_, probs))
+        
+        print(f"\nTweet      : {tweet}")
+        print(f"Prediction : {pred_label}")
+        print(f"Confidence : {prob_str}")
+        
+    print("-" * 40 + "\n")
+
 # ── 4. Main ───────────────────────────────────────────────────────────────────
 
 
@@ -182,20 +239,23 @@ def main():
         "I need a room full of mirrors so I can be surrounded by winners.",
     ]
 
-    # # Logistic Regression
-    # lr_pipe = get_logistic_regression_pipeline()
-    # train_and_evaluate(lr_pipe, X_train, y_train, X_test, y_test, "Logistic Regression")
-    # run_examples(lr_pipe, examples, "Logistic Regression")
+    # Multinomial Naive Bayes
+    nb_pipe = get_naive_bayes_pipeline()
+    train_and_evaluate(
+        nb_pipe, X_train, y_train, X_test, y_test, "Multinomial Naive Bayes"
+    )
+    run_examples(nb_pipe, examples, "Multinomial Naive Bayes")
 
-    # # Multinomial Naive Bayes
-    # nb_pipe = get_naive_bayes_pipeline()
-    # train_and_evaluate(
-    #     nb_pipe, X_train, y_train, X_test, y_test, "Multinomial Naive Bayes"
-    # )
-    # run_examples(nb_pipe, examples, "Multinomial Naive Bayes")
+    # Logistic Regression
+    lr_pipe = get_logistic_regression_pipeline()
+    train_and_evaluate(lr_pipe, X_train, y_train, X_test, y_test, "Logistic Regression")
+    run_examples(lr_pipe, examples, "Logistic Regression")
 
     # CNN
     train_and_evaluate_cnn(X_train, y_train, X_test, y_test, examples)
+
+    # CNN + Transformer
+    train_and_evaluate_transformer_cnn(X_train, y_train, X_test, y_test, examples)
 
 
 if __name__ == "__main__":
